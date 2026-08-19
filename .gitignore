@@ -1,0 +1,17 @@
+# Environment variables and credentials
+.env
+
+# Database file containing users list
+users_db.sqlite
+
+# Python virtual environment
+venv/
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Excel exports directory and temporary sheets
+exports/
+*.xlsx
