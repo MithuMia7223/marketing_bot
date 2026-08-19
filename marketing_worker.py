@@ -15,12 +15,19 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Predefined targeting targets in USA, Canada, UK, and Europe
-MARKETING_NICHES = ["Plumber", "Dentist", "Roofer", "Electrician", "HVAC", "Movers", "Cleaning Service", "Lawyer", "Accountant"]
+MARKETING_NICHES = [
+    "Plumber", "Dentist", "Roofer", "Electrician", "HVAC", "Movers", "Cleaning Service", 
+    "Lawyer", "Accountant", "Real Estate Agent", "Digital Marketing Agency", "Web Designer", 
+    "Gym", "Restaurant", "Beauty Salon", "Catering Service", "Auto Repair", "Pest Control", 
+    "Architect", "Photographer"
+]
 MARKETING_CITIES = [
     "New York, USA", "Los Angeles, USA", "Chicago, USA", "Houston, USA", "Dallas, USA", 
-    "London, UK", "Birmingham, UK", "Manchester, UK",
-    "Toronto, Canada", "Vancouver, Canada", 
-    "Dublin, Ireland", "Berlin, Germany"
+    "Phoenix, USA", "Philadelphia, USA", "San Antonio, USA", "San Diego, USA", "San Jose, USA", 
+    "London, UK", "Birmingham, UK", "Manchester, UK", "Leeds, UK", "Glasgow, UK", 
+    "Toronto, Canada", "Vancouver, Canada", "Montreal, Canada", "Ottawa, Canada", 
+    "Sydney, Australia", "Melbourne, Australia", "Brisbane, Australia", "Perth, Australia", 
+    "Dublin, Ireland", "Auckland, New Zealand"
 ]
 
 # SMTP credentials from environment
@@ -39,7 +46,7 @@ def send_cold_email(target_email: str, company_name: str) -> bool:
     try:
         # Create message container
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"Automated B2B Leads Discovery for {company_name}"
+        msg['Subject'] = f"🚀 Free B2B Leads Finder for {company_name}"
         msg['From'] = f"LeadGen Assistant Bot <{SMTP_EMAIL}>"
         msg['To'] = target_email
         
@@ -56,27 +63,41 @@ def send_cold_email(target_email: str, company_name: str) -> bool:
         
         html_content = f"""
         <html>
-          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333;">
+          <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #1B365D; border-bottom: 2px solid #1B365D; padding-bottom: 10px;">🚀 Free B2B Lead Generator for {html.escape(company_name)}</h2>
+            
             <p>Hi <strong>{html.escape(company_name)} Team</strong>,</p>
             
-            <p>We discovered your website while researching top service providers in your local area.</p>
+            <p>We found your business online and noticed you are doing amazing work in your area! To help you get even more clients and grow your revenue, we want to share a <strong>100% free automated tool</strong>.</p>
             
-            <p>We wanted to share a <strong>free, automated B2B tool</strong> that can help your business find fresh customer leads and B2B client contacts instantly.</p>
+            <p>Our automated B2B Lead Finder searches the web in real-time to extract direct phone numbers, public emails, and WhatsApp contacts of potential B2B clients in any city, exporting them directly into styled <strong>Excel sheets</strong>.</p>
             
-            <p>Our automated Telegram Bot searches the web in real-time, extracts verified phone numbers, public emails, and direct WhatsApp links, compiling them into styled Excel spreadsheets in seconds.</p>
+            <div style="background-color: #f7f9fc; padding: 15px; border-left: 4px solid #1B365D; margin: 20px 0;">
+              <strong>What the Bot does for you:</strong>
+              <ul style="margin: 5px 0 0 20px; padding: 0;">
+                <li>Scrapes verified emails & phone numbers in real-time.</li>
+                <li>Finds active WhatsApp links.</li>
+                <li>Downloads clean Excel spreadsheets in seconds.</li>
+                <li>Runs completely inside Telegram (No login required!).</li>
+              </ul>
+            </div>
             
-            <p style="margin: 25px 0;">
+            <p style="text-align: center; margin: 30px 0;">
               <a href="https://t.me/{BOT_USERNAME}" 
-                 style="background-color: #1B365D; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                 style="background-color: #1B365D; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                  👉 Start Free Lead Search Now
               </a>
             </p>
             
-            <p>Or copy this link to start: <a href="https://t.me/{BOT_USERNAME}">https://t.me/{BOT_USERNAME}</a></p>
+            <p style="text-align: center; font-size: 13px; color: #666666;">
+              Or copy-paste this link in your browser: <a href="https://t.me/{BOT_USERNAME}" style="color: #1B365D;">https://t.me/{BOT_USERNAME}</a>
+            </p>
             
             <br>
-            <p>Best regards,<br>
-            <strong>LeadGen Assistant Bot Team</strong></p>
+            <p style="border-top: 1px solid #e0e0e0; padding-top: 15px; font-size: 14px; color: #555555;">
+              Best regards,<br>
+              <strong>LeadGen Assistant Bot Team</strong>
+            </p>
           </body>
         </html>
         """
@@ -123,8 +144,8 @@ async def run_marketing_campaign() -> None:
                 
         logger.info(f"Background marketing worker: Harvested {saved_count} new emails for campaign.")
         
-        # 2. Send emails to unsent leads (up to 4 per run to prevent SMTP rate-limits)
-        unsent = get_unsent_marketing_leads(limit=4)
+        # 2. Send emails to unsent leads (up to 3 per run to prevent SMTP rate-limits)
+        unsent = get_unsent_marketing_leads(limit=3)
         if not unsent:
             logger.info("No unsent leads available in database. Skipping outreach.")
             return
@@ -156,9 +177,9 @@ async def start_marketing_worker(application) -> None:
         except Exception as e:
             logger.error(f"Error in marketing worker execution loop: {e}")
             
-        # Run every 1 hour (Sending ~100 emails/day total)
-        logger.info("Background Marketing Worker sleeping for 1 hour...")
-        await asyncio.sleep(1 * 3600)
+        # Run every 15 minutes (Sending ~250 emails/day total)
+        logger.info("Background Marketing Worker sleeping for 15 minutes...")
+        await asyncio.sleep(15 * 60)
 
 async def send_test_email(target_email: str) -> bool:
     """Helper function to test SMTP settings from command line."""
