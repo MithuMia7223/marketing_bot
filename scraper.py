@@ -278,9 +278,7 @@ async def fetch_website_contacts(client: httpx.AsyncClient, url: str) -> dict:
         return {"email": "Not found", "phone": "Not found", "whatsapp": "Not found"}
 
 async def search_leads(query: str, limit: int = 5) -> list:
-    """Searches Yahoo and extracts contact info from top websites.
-    Filters out completely empty leads and keeps searching until limit is reached.
-    """
+    """Searches Yahoo and extracts contact info from top websites in parallel."""
     try:
         # Run synchronous Yahoo fetch in a background thread to prevent blocking the event loop
         html = await asyncio.to_thread(query_yahoo, query)
@@ -300,46 +298,54 @@ async def search_leads(query: str, limit: int = 5) -> list:
                             if not any(excluded in domain for excluded in EXCLUDED_DOMAINS):
                                 if real_url not in target_urls:
                                     target_urls.append(real_url)
-                                    if len(target_urls) >= 20: # Fetch a larger pool of potential sites
+                                    if len(target_urls) >= 15: # Fetch a pool of potential sites
                                         break
-                if len(target_urls) >= 20:
+                if len(target_urls) >= 15:
                     break
         
-        leads = []
-        # Custom realistic browser headers for fetching individual websites
+        # Concurrently fetch contacts from all websites using a semaphore to limit concurrency
+        sem = asyncio.Semaphore(5)
         browser_headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
             'Connection': 'keep-alive',
         }
-        
-        lead_index = 1
-        async with httpx.AsyncClient(headers=browser_headers, follow_redirects=True) as client:
-            for website in target_urls:
-                if len(leads) >= limit:
-                    break
-                    
+
+        async def scrape_site(client, website):
+            async with sem:
                 name = clean_company_name(website)
                 logger.info(f"Scraping contact info from: {website}")
-                contacts = await fetch_website_contacts(client, website)
-                
-                # Verify that the lead has at least one contact channel (email or phone)
-                has_email = contacts["email"] != "Not found"
-                has_phone = contacts["phone"] != "Not found"
-                
-                if has_email or has_phone:
-                    leads.append({
-                        "id": lead_index,
+                try:
+                    contacts = await fetch_website_contacts(client, website)
+                    return {
                         "name": name,
                         "website": website,
                         "email": contacts["email"],
                         "phone": contacts["phone"],
                         "whatsapp": contacts["whatsapp"]
-                    })
+                    }
+                except Exception as e:
+                    logger.debug(f"Failed to scrape {website}: {e}")
+                    return None
+
+        leads = []
+        async with httpx.AsyncClient(headers=browser_headers, follow_redirects=True) as client:
+            tasks = [scrape_site(client, url) for url in target_urls]
+            results = await asyncio.gather(*tasks)
+            
+            lead_index = 1
+            for res in results:
+                if not res:
+                    continue
+                if len(leads) >= limit:
+                    break
+                has_email = res["email"] != "Not found"
+                has_phone = res["phone"] != "Not found"
+                if has_email or has_phone:
+                    res["id"] = lead_index
+                    leads.append(res)
                     lead_index += 1
-                else:
-                    logger.info(f"Skipping completely empty lead: {website}")
             
             return leads
             
