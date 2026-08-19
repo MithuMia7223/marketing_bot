@@ -14,7 +14,8 @@ from database import (
     get_subscription_status,
     set_subscription_status,
     get_marketing_campaign_stats,
-    FREE_LIMIT
+    FREE_LIMIT,
+    register_user
 )
 from marketing_worker import start_marketing_worker
 
@@ -92,6 +93,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     user = update.effective_user
     username = user.first_name if user else "there"
     user_id = user.id if user else 0
+    tg_username = user.username if user and user.username else "NoUsername"
+    
+    # Register user in database
+    register_user(user_id, f"{username} (@{tg_username})")
     
     # Check status
     sub_status = get_subscription_status(user_id)
@@ -127,6 +132,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     user_id = user.id if user else 0
     username = user.first_name if user else "Unknown User"
     tg_username = user.username if user and user.username else "NoUsername"
+    
+    # Register/update user details
+    register_user(user_id, f"{username} (@{tg_username})")
     
     # 1. Handle payment proof submission (Text/TxID)
     if context.user_data.get("awaiting_payment_proof"):
@@ -427,6 +435,67 @@ async def marketing_status_command(update: Update, context: ContextTypes.DEFAULT
     )
     await update.message.reply_text(msg, parse_mode="HTML")
 
+async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Broadcasts a replied-to message or specified text to all users (Admin only)."""
+    user_id = update.effective_user.id
+    if user_id != ADMIN_TELEGRAM_ID:
+        await update.message.reply_text("❌ You are not authorized to run this command.")
+        return
+        
+    # Check if this is a reply
+    reply_to = update.message.reply_to_message
+    
+    # If not a reply and no text provided
+    if not reply_to and not context.args:
+        await update.message.reply_text(
+            "❌ Please reply to a message with `/broadcast` to send it, or type `/broadcast <message>`.",
+            parse_mode="HTML"
+        )
+        return
+        
+    # Get all users
+    from database import get_all_users
+    users = get_all_users()
+    
+    # Exclude admin from broadcast
+    users = [u for u in users if u['user_id'] != ADMIN_TELEGRAM_ID]
+    
+    if not users:
+        await update.message.reply_text("No other users registered in the database yet.")
+        return
+        
+    status_msg = await update.message.reply_text(f"📢 Starting broadcast to {len(users)} users...")
+    
+    success_count = 0
+    fail_count = 0
+    
+    for u in users:
+        target_id = u['user_id']
+        try:
+            if reply_to:
+                # Forward/copy the message
+                await context.bot.copy_message(
+                    chat_id=target_id,
+                    from_chat_id=update.message.chat_id,
+                    message_id=reply_to.message_id
+                )
+            else:
+                # Send text
+                broadcast_text = " ".join(context.args)
+                await context.bot.send_message(chat_id=target_id, text=broadcast_text)
+            success_count += 1
+            await asyncio.sleep(0.05)  # Rate limiting protection
+        except Exception as e:
+            logger.error(f"Failed to send broadcast to {target_id}: {e}")
+            fail_count += 1
+            
+    await status_msg.edit_text(
+        f"📢 <b>Broadcast Completed!</b>\n\n"
+        f"• Successfully sent: <code>{success_count}</code>\n"
+        f"• Failed/Blocked: <code>{fail_count}</code>",
+        parse_mode="HTML"
+    )
+
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handles inline button clicks (approvals, payment submission initiation)."""
     query = update.callback_query
@@ -534,6 +603,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("myid", myid_command))
     application.add_handler(CommandHandler("marketing_status", marketing_status_command))
+    application.add_handler(CommandHandler("broadcast", broadcast_command))
     application.add_handler(CommandHandler("find", handle_message))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
     

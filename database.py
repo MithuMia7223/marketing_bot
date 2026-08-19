@@ -185,3 +185,33 @@ def get_recent_sent_leads(limit: int = 5) -> list:
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+def register_user(user_id: int, username: str) -> None:
+    """Registers a new user in the database if they don't exist yet."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    if not row:
+        cursor.execute(
+            "INSERT INTO users (user_id, username, search_count, created_at, subscription_status) VALUES (?, ?, 0, ?, 'free')",
+            (user_id, username, datetime.now().isoformat())
+        )
+        conn.commit()
+    else:
+        # Update username in case it changed
+        cursor.execute(
+            "UPDATE users SET username = ? WHERE user_id = ?",
+            (username, user_id)
+        )
+        conn.commit()
+    conn.close()
+
+def get_all_users() -> list:
+    """Returns a list of all registered users."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, username, subscription_status, search_count FROM users")
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
