@@ -15,7 +15,9 @@ from database import (
     set_subscription_status,
     get_marketing_campaign_stats,
     FREE_LIMIT,
-    register_user
+    register_user,
+    add_referral,
+    get_referral_count
 )
 from marketing_worker import start_marketing_worker
 
@@ -41,20 +43,20 @@ ADMIN_TELEGRAM_ID = int(admin_val) if admin_val and admin_val.isdigit() else Non
 if not ADMIN_TELEGRAM_ID:
     logger.warning("Warning: ADMIN_TELEGRAM_ID is not set in the .env file. Payment approvals will fail!")
 
-def get_payment_message(current_searches: int, remaining: int, is_limit_reached: bool = False) -> str:
+def get_payment_message(current_searches: int, remaining: int, is_limit_reached: bool = False, allowed_limit: int = FREE_LIMIT) -> str:
     """Generates the payment details message based on available environment variables."""
     # Base title
     if is_limit_reached:
         msg = (
             "⚠️ <b>Free Limit Reached!</b>\n\n"
-            f"You have used all {FREE_LIMIT} of your free B2B search queries.\n"
+            f"You have used all {allowed_limit} of your free B2B search queries.\n"
             "To unlock <b>Unlimited Searches</b>, please subscribe to one of our Premium Plans below.\n\n"
         )
     else:
         msg = (
             "💳 <b>Your Subscription:</b>\n\n"
             "• Plan: <b>Free Plan</b>\n"
-            f"• Usage: {current_searches} of {FREE_LIMIT} searches used ({remaining} remaining).\n\n"
+            f"• Usage: {current_searches} of {allowed_limit} searches used ({remaining} remaining).\n\n"
             "💰 <b>Choose a Premium Plan to unlock unlimited searches:</b>\n"
         )
     
@@ -88,7 +90,7 @@ def get_payment_message(current_searches: int, remaining: int, is_limit_reached:
 def get_main_keyboard(user_id: int = 0):
     keyboard = [
         [KeyboardButton("🔍 Search Leads"), KeyboardButton("💳 Subscription")],
-        [KeyboardButton("ℹ️ Info")]
+        [KeyboardButton("ℹ️ Info"), KeyboardButton("👥 Refer & Earn")]
     ]
     if user_id == ADMIN_TELEGRAM_ID:
         keyboard.append([KeyboardButton("📊 Marketing Status")])
@@ -104,14 +106,35 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Register user in database
     register_user(user_id, f"{username} (@{tg_username})")
     
+    # Handle Referral deep linking (e.g. /start ref_12345)
+    args = context.args
+    if args and args[0].startswith("ref_"):
+        try:
+            referrer_id = int(args[0].split("_")[1])
+            success = add_referral(user_id, referrer_id)
+            if success:
+                # Notify the referrer
+                try:
+                    await context.bot.send_message(
+                        chat_id=referrer_id,
+                        text=f"🎉 <b>New Referral!</b> <code>{html.escape(username)}</code> has joined using your link. You've earned <b>+2 Free Searches</b>!",
+                        parse_mode="HTML"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to notify referrer: {e}")
+        except Exception as e:
+            logger.error(f"Error registering referral: {e}")
+            
     # Check status
     sub_status = get_subscription_status(user_id)
     if sub_status == "premium":
         status_text = "Premium Plan (Unlimited searches unlocked! 🎉)"
     else:
         current_searches = get_search_count(user_id)
-        remaining = max(0, FREE_LIMIT - current_searches)
-        status_text = f"Free Plan ({remaining} of {FREE_LIMIT} searches remaining)"
+        referrals = get_referral_count(user_id)
+        allowed_limit = FREE_LIMIT + (referrals * 2)
+        remaining = max(0, allowed_limit - current_searches)
+        status_text = f"Free Plan ({remaining} of {allowed_limit} searches remaining)"
     
     welcome_text = (
         f"🤖 <b>Welcome to LeadGen Assistant Bot, {html.escape(username)}!</b> \n\n"
@@ -218,18 +241,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
         else:
             current_searches = get_search_count(user_id)
-            remaining = max(0, FREE_LIMIT - current_searches)
+            referrals = get_referral_count(user_id)
+            allowed_limit = FREE_LIMIT + (referrals * 2)
+            remaining = max(0, allowed_limit - current_searches)
             keyboard = [
                 [InlineKeyboardButton("💳 Submit Payment Proof", callback_data="start_payment_submission")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            payment_msg = get_payment_message(current_searches, remaining)
+            payment_msg = get_payment_message(current_searches, remaining, allowed_limit=allowed_limit)
             await update.message.reply_text(
                 text=payment_msg,
                 parse_mode="HTML",
                 reply_markup=reply_markup
             )
+        return
+
+    if text == "👥 Refer & Earn":
+        bot_info = await context.bot.get_me()
+        ref_link = f"https://t.me/{bot_info.username}?start=ref_{user_id}"
+        referrals = get_referral_count(user_id)
+        bonus_searches = referrals * 2
+        
+        msg = (
+            "👥 <b>Refer & Earn Program</b>\n\n"
+            "Invite your friends to use this bot and get rewarded with <b>+2 Free Searches</b> for every friend who starts the bot!\n\n"
+            f"• <b>Your Referrals:</b> {referrals} users invited\n"
+            f"• <b>Bonus Searches Earned:</b> {bonus_searches} extra searches\n\n"
+            f"🔗 <b>Your Unique Referral Link:</b>\n<code>{ref_link}</code>\n\n"
+            "Copy and share this link in Telegram groups, Facebook, or with your friends!"
+        )
+        await update.message.reply_text(msg, parse_mode="HTML")
         return
         
     if text == "ℹ️ Info":
@@ -303,13 +345,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Limit checks for free users
         if sub_status != "premium":
             current_searches = get_search_count(user_id)
-            if current_searches >= FREE_LIMIT:
+            referrals = get_referral_count(user_id)
+            allowed_limit = FREE_LIMIT + (referrals * 2)
+            if current_searches >= allowed_limit:
                 keyboard = [
                     [InlineKeyboardButton("💳 Submit Payment Proof", callback_data="start_payment_submission")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                payment_msg = get_payment_message(current_searches, 0, is_limit_reached=True)
+                payment_msg = get_payment_message(current_searches, 0, is_limit_reached=True, allowed_limit=allowed_limit)
                 await update.message.reply_text(
                     text=payment_msg,
                     parse_mode="HTML",
@@ -320,7 +364,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         context.user_data["awaiting_search"] = False
         
-        limit_status = "Premium" if sub_status == "premium" else f"{current_searches + 1} of {FREE_LIMIT}"
+        referrals = get_referral_count(user_id)
+        allowed_limit = FREE_LIMIT + (referrals * 2)
+        limit_status = "Premium" if sub_status == "premium" else f"{current_searches + 1} of {allowed_limit}"
         status_msg = await update.message.reply_text(
             f"🔍 <b>Searching real-time leads for: {html.escape(query)}...</b> (Search {limit_status})\n"
             "🌐 Exploring the web & fetching contact details. Please wait standard 10-15 seconds...",
@@ -340,8 +386,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Increment search count in database (only if they are a free user)
         if sub_status != "premium":
             new_count = increment_search_count(user_id, f"{username} (@{tg_username})")
-            usage_caption = f"📊 Usage: {new_count} of {FREE_LIMIT} free searches used."
-            usage_header_info = f" ({new_count}/{FREE_LIMIT} used)"
+            referrals = get_referral_count(user_id)
+            allowed_limit = FREE_LIMIT + (referrals * 2)
+            usage_caption = f"📊 Usage: {new_count} of {allowed_limit} free searches used."
+            usage_header_info = f" ({new_count}/{allowed_limit} used)"
         else:
             usage_caption = "📊 Usage: Premium Plan (Unlimited)"
             usage_header_info = ""

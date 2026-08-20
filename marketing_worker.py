@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 
 # Predefined targeting targets in USA, Canada, UK, and Europe
 MARKETING_NICHES = [
-    "Plumber", "Dentist", "Roofer", "Electrician", "HVAC", "Movers", "Cleaning Service", 
-    "Lawyer", "Accountant", "Real Estate Agent", "Digital Marketing Agency", "Web Designer", 
-    "Gym", "Restaurant", "Beauty Salon", "Catering Service", "Auto Repair", "Pest Control", 
-    "Architect", "Photographer"
+    "Digital Marketing Agency", "Web Designer", "SEO Agency", "Software Developer", 
+    "Real Estate Agent", "Consulting Firm", "Business Coach", "Recruiter", 
+    "Social Media Marketing", "Advertising Agency", "IT Support Services", "PR Agency",
+    "Mortgage Broker", "Insurance Agent", "Financial Advisor"
 ]
 MARKETING_CITIES = [
     "New York, USA", "Los Angeles, USA", "Chicago, USA", "Houston, USA", "Dallas, USA", 

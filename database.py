@@ -38,6 +38,18 @@ def init_db() -> None:
         # Column already exists
         pass
         
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN referred_by INTEGER")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN referral_count INTEGER DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
+        
     # 3. Create marketing campaign table to track cold emails
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS marketing_campaign (
@@ -215,3 +227,45 @@ def get_all_users() -> list:
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+def add_referral(user_id: int, referred_by_id: int) -> bool:
+    """Registers a referral. Returns True if successfully registered."""
+    if user_id == referred_by_id:
+        return False
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Check if this user already exists or has been referred
+    cursor.execute("SELECT search_count, referred_by FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    
+    if not row or (row["search_count"] == 0 and not row["referred_by"]):
+        if not row:
+            cursor.execute(
+                "INSERT INTO users (user_id, referred_by, search_count, created_at, subscription_status) VALUES (?, ?, 0, ?, 'free')",
+                (user_id, referred_by_id, datetime.now().isoformat())
+            )
+        else:
+            cursor.execute(
+                "UPDATE users SET referred_by = ? WHERE user_id = ?",
+                (referred_by_id, user_id)
+            )
+        
+        # Increment referral count of the referrer
+        cursor.execute("UPDATE users SET referral_count = referral_count + 1 WHERE user_id = ?", (referred_by_id,))
+        conn.commit()
+        conn.close()
+        return True
+    conn.close()
+    return False
+
+def get_referral_count(user_id: int) -> int:
+    """Returns the number of users referred by this user."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT referral_count FROM users WHERE user_id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row and row["referral_count"]:
+        return row["referral_count"]
+    return 0
