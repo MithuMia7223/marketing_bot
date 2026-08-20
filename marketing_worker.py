@@ -54,7 +54,7 @@ def send_via_google_script(target_email: str, company_name: str, subject: str, t
             "body": text_content,
             "htmlBody": html_content
         }
-        response = httpx.post(GOOGLE_SCRIPT_URL, json=payload, timeout=15.0)
+        response = httpx.post(GOOGLE_SCRIPT_URL, json=payload, follow_redirects=True, timeout=15.0)
         if response.status_code == 200:
             result = response.json()
             if result.get("status") == "success":
