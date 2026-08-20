@@ -48,15 +48,21 @@ def get_payment_message(current_searches: int, remaining: int, is_limit_reached:
         msg = (
             "⚠️ <b>Free Limit Reached!</b>\n\n"
             f"You have used all {FREE_LIMIT} of your free B2B search queries.\n"
-            "To unlock <b>Unlimited Searches</b>, please subscribe to our Premium Plan ($30/month).\n\n"
+            "To unlock <b>Unlimited Searches</b>, please subscribe to one of our Premium Plans below.\n\n"
         )
     else:
         msg = (
             "💳 <b>Your Subscription:</b>\n\n"
             "• Plan: <b>Free Plan</b>\n"
             f"• Usage: {current_searches} of {FREE_LIMIT} searches used ({remaining} remaining).\n\n"
-            "💰 <b>Upgrade to Premium ($30/month) to unlock unlimited searches:</b>\n"
+            "💰 <b>Choose a Premium Plan to unlock unlimited searches:</b>\n"
         )
+    
+    msg += (
+        "🌟 <b>Weekly Trial:</b> $5 for 7 Days\n"
+        "🚀 <b>Monthly Premium:</b> $15 for 30 Days (50% Launch Week Discount, normally $30)\n\n"
+        "💳 <b>Payment Details:</b>\n"
+    )
     
     # Details
     details_added = False
@@ -72,7 +78,7 @@ def get_payment_message(current_searches: int, remaining: int, is_limit_reached:
     msg += "• <b>Support Contact:</b> @Mdmithun731\n"
     
     msg += (
-        "\nPlease make the payment of <b>$30</b>. After making the payment, click the button below "
+        "\nPlease pay <b>$5</b> or <b>$15</b>. After making the payment, click the button below "
         "to submit your Binance TxID or upload a screenshot of your transaction directly to this bot, "
         "or contact support at @Mdmithun731."
     )

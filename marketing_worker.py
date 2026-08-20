@@ -99,14 +99,15 @@ def send_via_smtp(target_email: str, company_name: str, subject: str, text_conte
 
 def send_cold_email(target_email: str, company_name: str) -> bool:
     """Sends a personalized HTML cold email to a B2B business lead."""
-    subject = f"🚀 Free B2B Leads Finder for {company_name}"
+    subject = f"Quick query regarding {company_name}"
     
     # Email Body (HTML & Text)
     text_content = (
         f"Hi {company_name} Team,\n\n"
         "We found your website while researching top service companies in your area.\n\n"
-        "We wanted to share a free automated tool that can help you find fresh B2B leads, customers, and client contacts instantly.\n\n"
-        "Our automated Telegram Bot parses websites, extracts direct phone numbers, email addresses, and WhatsApp links in real-time. You can download styled leads directly into Microsoft Excel spreadsheets.\n\n"
+        "We wanted to share an automated B2B leads finder tool that can help you find fresh customers, leads, and client contacts instantly.\n\n"
+        "Our B2B Lead Finder scans the web in real-time, extracts direct phone numbers, email addresses, and active WhatsApp links, and exports them directly into styled Microsoft Excel spreadsheets.\n\n"
+        "To celebrate our launch week, we are offering our Premium Plan at 50% Off (only $15/month instead of $30/month) or a 7-day trial plan for just $5!\n\n"
         f"Try it completely free today: https://t.me/{BOT_USERNAME}\n\n"
         "Best regards,\n"
         "LeadGen Assistant Bot Team"
@@ -115,13 +116,13 @@ def send_cold_email(target_email: str, company_name: str) -> bool:
     html_content = f"""
     <html>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #1B365D; border-bottom: 2px solid #1B365D; padding-bottom: 10px;">🚀 Free B2B Lead Generator for {html.escape(company_name)}</h2>
+        <h2 style="color: #1B365D; border-bottom: 2px solid #1B365D; padding-bottom: 10px;">🚀 B2B Lead Finder & Scraper for {html.escape(company_name)}</h2>
         
         <p>Hi <strong>{html.escape(company_name)} Team</strong>,</p>
         
-        <p>We found your business online and noticed you are doing amazing work in your area! To help you get even more clients and grow your revenue, we want to share a <strong>100% free automated tool</strong>.</p>
+        <p>We found your business online and noticed you are doing amazing work! To help you find new customers and grow your revenue, we want to share a <strong>free automated leads scraper tool</strong>.</p>
         
-        <p>Our automated B2B Lead Finder searches the web in real-time to extract direct phone numbers, public emails, and WhatsApp contacts of potential B2B clients in any city, exporting them directly into styled <strong>Excel sheets</strong>.</p>
+        <p>Our automated B2B Lead Finder searches the web in real-time to extract direct phone numbers, public emails, and active WhatsApp contacts of potential B2B clients in any city, exporting them directly into styled <strong>Excel sheets</strong>.</p>
         
         <div style="background-color: #f7f9fc; padding: 15px; border-left: 4px solid #1B365D; margin: 20px 0;">
           <strong>What the Bot does for you:</strong>
@@ -131,6 +132,11 @@ def send_cold_email(target_email: str, company_name: str) -> bool:
             <li>Downloads clean Excel spreadsheets in seconds.</li>
             <li>Runs completely inside Telegram (No login required!).</li>
           </ul>
+        </div>
+
+        <div style="background-color: #fff9e6; border: 1px solid #ffe0b2; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <strong>🎉 LAUNCH WEEK OFFER - 50% DISCOUNT 🎉</strong><br>
+          Try the bot completely free. To celebrate our launch, we are offering our <b>Premium Plan at 50% Off (only $15/month instead of $30/month)</b> or a <b>7-day trial pack for just $5</b>!
         </div>
         
         <p style="text-align: center; margin: 30px 0;">
