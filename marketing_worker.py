@@ -7,6 +7,7 @@ import html
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
+import httpx
 from scraper import search_leads
 from database import add_marketing_lead, get_unsent_marketing_leads, mark_lead_as_sent
 
